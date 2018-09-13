@@ -56,7 +56,7 @@ namespace Trader.Domain.Services
                 //initally load some trades 
                 cache.AddOrUpdate(_tradeGenerator.Generate(5_000, true));
 
-                TimeSpan RandomInterval() => TimeSpan.FromMilliseconds(random.Next(2500, 5000));
+                TimeSpan RandomInterval() => TimeSpan.FromMilliseconds(random.Next(25, 50));
 
 
                 // create a random number of trades at a random interval
