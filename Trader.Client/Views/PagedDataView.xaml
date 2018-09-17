@@ -26,6 +26,7 @@
             <RowDefinition Height="35" />
             <RowDefinition Height="*" />
             <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <Grid.ColumnDefinitions>
@@ -173,8 +174,13 @@
                 VerticalAlignment="Center"
                 Text="{Binding PageSize, StringFormat='(\{0} items per page)'}" />
 
-
         </StackPanel>
+        
+        <CheckBox Grid.Row="3"
+                  Grid.Column="0"
+                  Margin="8,8,4,0"
+                  Content="Enable Pause Workaround"
+                  IsChecked="{Binding IsPauseWorkaroundEnabled}"/>
 
     </Grid>
 </UserControl>

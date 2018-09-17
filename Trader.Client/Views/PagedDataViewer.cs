@@ -4,6 +4,7 @@ using System.Reactive.Linq;
 using DynamicData;
 using DynamicData.Binding;
 using DynamicData.PLinq;
+using ReactiveUI;
 using Trader.Client.Infrastucture;
 using Trader.Domain.Infrastucture;
 using Trader.Domain.Model;
@@ -16,9 +17,23 @@ namespace Trader.Client.Views
         private readonly IDisposable _cleanUp;
         private readonly ReadOnlyObservableCollection<TradeProxy> _data;
         private string _searchText;
+        private bool _isPauseWorkaroundEnabled;
+        private bool _paused;
 
         public PagedDataViewer(ITradeService tradeService, ISchedulerProvider schedulerProvider)
         {
+            PageParameters
+                .WhenAnyValue(x => x.CurrentPage)
+                .Skip(1)
+                .DistinctUntilChanged()
+                .Subscribe(_ =>
+                {
+                    if (IsPauseWorkaroundEnabled)
+                    {
+                        Paused = true;  // Pause whenever the current page changes
+                    }
+                });
+
             //build observable predicate from search text
             var filter = this.WhenValueChanged(t => t.SearchText)
                 .Throttle(TimeSpan.FromMilliseconds(250))
@@ -36,12 +51,20 @@ namespace Trader.Client.Views
             
             // filter, sort, page and bind to observable collection
             _cleanUp = tradeService.All.Connect()
+                .BatchIf(this.WhenValueChanged(x => x.Paused), timeOut: null, scheduler: null)
                 .Filter(filter) // apply user filter
                 .Transform(trade => new TradeProxy(trade), new ParallelisationOptions(ParallelType.Ordered, 5))
                 .Sort(sort, SortOptimisations.ComparesImmutableValuesOnly)
                 .Page(pager)
                 .ObserveOn(schedulerProvider.MainThread)
-                .Do(changes => PageParameters.Update(changes.Response))
+                .Do(changes =>
+                {
+                    PageParameters.Update(changes.Response);
+                    if (IsPauseWorkaroundEnabled)
+                    {
+                        Paused = false; // unpause
+                    }
+                })
                 .Bind(out _data)        // update observable collection bindings
                 .DisposeMany()          // dispose when no longer required
                 .Subscribe();
@@ -60,6 +83,18 @@ namespace Trader.Client.Views
             get => _searchText;
             set => SetAndRaise(ref _searchText, value);
         }
+
+        public bool IsPauseWorkaroundEnabled
+        {
+            get => _isPauseWorkaroundEnabled;
+            set => SetAndRaise(ref _isPauseWorkaroundEnabled, value);
+        }
+        public bool Paused
+        {
+            get => _paused;
+            set => SetAndRaise(ref _paused, value);
+        }
+
 
         public ReadOnlyObservableCollection<TradeProxy> Data => _data;
 
